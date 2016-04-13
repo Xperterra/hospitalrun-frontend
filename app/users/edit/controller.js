@@ -3,7 +3,6 @@ import Ember from 'ember';
 import UserRoles from 'hospitalrun/mixins/user-roles';
 
 export default AbstractEditController.extend(UserRoles, {
-  needs: 'users/index',
   usersController: Ember.inject.controller('users/index'),
   updateCapability: 'add_user',
 
@@ -39,7 +38,7 @@ export default AbstractEditController.extend(UserRoles, {
         updateModel.set('userPrefix', prefix);
       }
       updateModel.save().then(function() {
-        this.displayAlert('User Saved', 'The user has been saved.');
+        this.displayAlert(this.get('i18n').t('messages.user_saved'), this.get('i18n').t('messages.user_has_been_saved'));
       }.bind(this));
     }
   }

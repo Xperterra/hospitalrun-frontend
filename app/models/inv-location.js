@@ -16,13 +16,16 @@ var InventoryLocation = AbstractModel.extend(LocationName, {
   locationNameWithQuantity: function() {
     var quantity = this.get('quantity'),
       locationName = this.get('locationName');
-    return '%@ (%@ available)'.fmt(locationName, quantity);
-  }.property('locationName'),
+    return `${locationName} (${quantity} available)`;
+  }.property('locationName', 'quantity'),
 
   validations: {
     adjustmentQuantity: {
       numericality: {
-        greaterThan: 0
+        greaterThan: 0,
+        messages: {
+          greaterThan: 'must be greater than 0'
+        }
       },
       acceptance: {
         /***

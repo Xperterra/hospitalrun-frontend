@@ -5,12 +5,15 @@ const { inject, run } = Ember;
 export default Ember.Service.extend({
   configDB: null,
   database: inject.service(),
+  session: inject.service(),
+  sessionData: Ember.computed.alias('session.data'),
 
   setup() {
     const replicateConfigDB = this.replicateConfigDB.bind(this);
     const loadConfig = this.loadConfig.bind(this);
     return this.createDB().then((db) => {
       this.set('configDB', db);
+      this.setCurrentUser();
       return db;
     }).then(replicateConfigDB).then(loadConfig);
   },
@@ -28,9 +31,7 @@ export default Ember.Service.extend({
   },
   replicateConfigDB(db) {
     const url = `${document.location.protocol}//${document.location.host}/db/config`;
-    return new Ember.RSVP.Promise(function(resolve, reject) {
-      db.replicate.from(url, { complete: resolve }, reject);
-    }, 'replicating the database');
+    return db.replicate.from(url);
   },
   loadConfig() {
     const config = this.get('configDB');
@@ -110,14 +111,18 @@ export default Ember.Service.extend({
     });
   },
   useGoogleAuth() {
-    return this._getConfigValue('use_google_auth', false);
+    return this.getConfigValue('use_google_auth', false);
   },
 
   getPatientPrefix() {
-    return this._getConfigValue('patient_id_prefix', 'P');
+    return this.getConfigValue('patient_id_prefix', 'P');
   },
 
-  _getConfigValue(id, defaultValue) {
+  getConfigDB() {
+    return this.get('configDB');
+  },
+
+  getConfigValue(id, defaultValue) {
     const configDB = this.get('configDB');
     return new Ember.RSVP.Promise(function(resolve) {
       configDB.get('config_' + id).then(function(doc) {
@@ -136,6 +141,23 @@ export default Ember.Service.extend({
       keys: configKeys
     };
     return configDB.allDocs(options);
+  },
+
+  setCurrentUser: function(userName) {
+    const config = this.get('configDB');
+    const sessionData = this.get('sessionData');
+    if (!userName && sessionData.authenticated) {
+      userName = sessionData.authenticated.name;
+    }
+    config.get('current_user').then((doc) => {
+      doc.value = userName;
+      config.put(doc);
+    }).catch(() => {
+      config.put({
+        _id: 'current_user',
+        value: userName
+      });
+    });
   }
 
 });

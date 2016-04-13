@@ -17,10 +17,10 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
   patientDetails: {},
 
   admissionReportColumns: {
-    gender: {
-      label: 'Gender',
+    sex: {
+      label: 'Sex',
       include: true,
-      property: 'gender'
+      property: 'sex'
     },
     total: {
       label: 'Total',
@@ -127,10 +127,10 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
       include: true,
       property: 'patient.displayPatientId'
     },
-    gender: {
-      label: 'Gender',
+    sex: {
+      label: 'Sex',
       include: true,
-      property: 'patient.gender'
+      property: 'patient.sex'
     },
     dateOfBirth: {
       label: 'Date Of Birth',
@@ -313,13 +313,13 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
           }, false, reportColumns);
           if (index + 1 === procedureTotal.records.length) {
             this._addReportRow({
-              procedure: 'Total for %@: %@'.fmt(procedureTotal.type, procedureTotal.total)
+              procedure: `Total for ${procedureTotal.type}: ${procedureTotal.total}`
             }, true, reportColumns);
           }
         }.bind(this));
       } else {
         this._addReportRow({
-          procedure: 'Total for %@: %@'.fmt(procedureTotal.type, procedureTotal.total)
+          procedure: `Total for ${procedureTotal.type}: ${procedureTotal.total}`
         }, true, reportColumns);
       }
     }.bind(this));
@@ -380,12 +380,12 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
         filterEndDate = moment(filterEndDate).endOf('day').toDate();
         findParams.options.endkey = ['Completed', maxValue, filterEndDate.getTime(), maxValue];
       }
-      this.store.find('imaging', findParams).then(function(imagingRecords) {
+      this.store.query('imaging', findParams).then(function(imagingRecords) {
         var returnRecords = {
           imaging: imagingRecords
         };
         findParams.mapReduce = 'lab_by_status';
-        this.store.find('lab', findParams).then(function(labRecords) {
+        this.store.query('lab', findParams).then(function(labRecords) {
           returnRecords.labs = labRecords;
           resolve(returnRecords);
         }, reject);
@@ -406,7 +406,7 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
         mapReduce: 'patient_by_status'
       };
     return new Ember.RSVP.Promise(function(resolve, reject) {
-      this.store.find('patient', findParams).then(resolve, reject);
+      this.store.query('patient', findParams).then(resolve, reject);
     }.bind(this));
   },
 
@@ -428,7 +428,7 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
         filterEndDate = moment(filterEndDate).endOf('day').toDate();
         findParams.options.endkey = [filterEndDate.getTime(), maxValue];
       }
-      this.store.find('procedure', findParams).then(resolve, reject);
+      this.store.query('procedure', findParams).then(resolve, reject);
     }.bind(this));
   },
 
@@ -464,7 +464,7 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
           findParams.options.endkey = [filterEndDate.getTime(), maxValue, maxValue];
         }
       }
-      this.store.find('visit', findParams).then(resolve, reject);
+      this.store.query('visit', findParams).then(resolve, reject);
 
     }.bind(this));
   },
@@ -505,7 +505,7 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
           this._addReportRow(visit);
         }.bind(this));
         this._addReportRow({
-          visitDate: 'Total for %@: %@'.fmt(visitType.type, visitType.total)
+          visitDate: `Total for ${visitType.type}: ${visitType.total}`
         });
       }
     }.bind(this));
@@ -523,11 +523,8 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
 
   _generateAdmissionOrDischargeReport: function(visits, reportType) {
     var detailedReport = false,
-      femaleCount = 0,
-      femaleRows = [],
-      maleCount = 0,
-      maleRows = [],
-      reportColumns;
+      reportColumns,
+      patientBySex = {};
     if (reportType.indexOf('detailed') > -1) {
       detailedReport = true;
       reportColumns = this.get('admissionDetailReportColumns');
@@ -550,30 +547,32 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
           admissionDate: visit.get('startDate'),
           dischargeDate: visit.get('endDate')
         };
-        if (visit.get('patient.gender') === 'F') {
-          femaleCount++;
-          femaleRows.push(reportRow);
-        } else {
-          maleCount++;
-          maleRows.push(reportRow);
+        var sexGrouping = patientBySex[visit.get('patient.sex')];
+        if (!sexGrouping) {
+          sexGrouping = {
+            count: 0,
+            rows: []
+          };
+          patientBySex[visit.get('patient.sex')] = sexGrouping;
         }
+        sexGrouping.count++;
+        sexGrouping.rows.push(reportRow);
       }
     }.bind(this));
-    if (detailedReport) {
-      femaleRows.forEach(function(reportRow) {
-        this._addReportRow(reportRow, false, reportColumns);
-      }.bind(this));
-      this._addReportRow({ patientId: 'Female Total: ' + femaleCount }, true, reportColumns);
-      maleRows.forEach(function(reportRow) {
-        this._addReportRow(reportRow, false, reportColumns);
-      }.bind(this));
-      this._addReportRow({ patientId: 'Male Total: ' + maleCount }, true, reportColumns);
-      this._addReportRow({ patientId: 'Grand Total: ' + (femaleCount + maleCount) }, true, reportColumns);
-    } else {
-      this._addReportRow({ gender: 'Female',total: femaleCount }, true, reportColumns);
-      this._addReportRow({ gender: 'Male',total: maleCount }, true, reportColumns);
-      this._addReportRow({ gender: 'Total: ',total: femaleCount + maleCount }, true, reportColumns);
+    var sexTotal = 0;
+    var addPatientBySexRows = (reportRow) =>  {
+      this._addReportRow(reportRow, false, reportColumns);
+    };
+    for (var sex in patientBySex) {
+      if (detailedReport) {
+        patientBySex[sex].rows.forEach(addPatientBySexRows);
+        this._addReportRow({ patientId: sex + ' Total: ' + patientBySex[sex].count }, true, reportColumns);
+      } else {
+        this._addReportRow({ sex: sex,total: patientBySex[sex].count }, true, reportColumns);
+      }
+      sexTotal += patientBySex[sex].count;
     }
+    this._addReportRow({ patientId: 'Grand Total: ' + (sexTotal) }, true, reportColumns);
     this._finishReport(reportColumns);
   },
 
@@ -674,7 +673,7 @@ export default AbstractReportController.extend(PatientDiagnosis, PatientVisits, 
           procedures.forEach(function(procedure) {
             procedure.set('patient', resolutionHash[procedure.get('id')]);
           });
-          var procedureTotals = this._totalByType(procedures, 'description', 'Total procedures');
+          var procedureTotals = this._totalByType(procedures, 'description', 'all procedures');
           this._addPatientProcedureRows(procedureTotals, reportColumns);
           this._finishReport(reportColumns);
         }.bind(this), function(err) {

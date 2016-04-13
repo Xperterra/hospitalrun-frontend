@@ -33,7 +33,9 @@ export default AbstractModel.extend({
   labs: DS.hasMany('lab', { async: true }),
   location: DS.attr('string'),
   medication: DS.hasMany('medication', { async: true }),
+  // this field is being deprecated in favor of patient-note
   notes: DS.attr('string'),
+  patientNotes: DS.hasMany('patient-note', { async: true }),
   outPatient: DS.attr('boolean'),
   patient: DS.belongsTo('patient', {
     async: false
@@ -75,7 +77,7 @@ export default AbstractModel.extend({
   visitDescription: function() {
     var visitDate = this.get('visitDate'),
       visitType = this.get('visitType');
-    return '%@ (%@)'.fmt(visitDate, visitType);
+    return `${visitDate} (${visitType})`;
   }.property('visitDate', 'visitType'),
 
   validations: {

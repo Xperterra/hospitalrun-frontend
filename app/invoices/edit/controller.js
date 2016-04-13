@@ -47,12 +47,14 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
 
   pharmacyExpenseAccount: function() {
     var expenseAccountList = this.get('expenseAccountList');
-    var account = expenseAccountList.find(function(value) {
-      if (value.toLowerCase().indexOf('pharmacy') > -1) {
-        return true;
-      }
-    });
-    return account;
+    if (!Ember.isEmpty(expenseAccountList)) {
+      var account = expenseAccountList.find(function(value) {
+        if (value.toLowerCase().indexOf('pharmacy') > -1) {
+          return true;
+        }
+      });
+      return account;
+    }
   }.property('expenseAccountList.value'),
 
   actions: {
@@ -124,7 +126,7 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
         confirmAction: 'deleteCharge',
         deleteFrom: deleteFrom,
         title: 'Delete Charge',
-        message: 'Are you sure you want to delete %@?'.fmt(itemToDelete.get('name')),
+        message: `Are you sure you want to delete ${itemToDelete.get('name')}?`,
         itemToDelete: itemToDelete,
         updateButtonAction: 'confirm',
         updateButtonText: 'Ok'
@@ -135,7 +137,7 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
       this.send('openModal', 'dialog', Ember.Object.create({
         confirmAction: 'deleteLineItem',
         title: 'Delete Line Item',
-        message: 'Are you sure you want to delete %@?'.fmt(item.get('name')),
+        message: `Are you sure you want to delete ${item.get('name')}?`,
         itemToDelete: item,
         updateButtonAction: 'confirm',
         updateButtonText: 'Ok'
@@ -226,23 +228,23 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
         console.log('Error resolving visit children', err);
       });
     }
-  }.observes('visit'),
+  }.observes('model.visit'),
 
   _addPharmacyCharge: function(charge, medicationItemName) {
-    var medicationItem = charge.get(medicationItemName),
-      price = medicationItem.get('price'),
-      quantity = charge.get('quantity'),
-      pharmacyCharges = this.get('pharmacyCharges'),
-      pharmacyExpenseAccount = this.get('pharmacyExpenseAccount'),
-      pharmacyCharge = this.store.createRecord('line-item-detail', {
+    return charge.getMedicationDetails(medicationItemName).then((medicationDetails) => {
+      let quantity = charge.get('quantity');
+      let pharmacyCharges = this.get('pharmacyCharges');
+      let pharmacyExpenseAccount = this.get('pharmacyExpenseAccount');
+      let pharmacyCharge = this.store.createRecord('line-item-detail', {
         id: PouchDB.utils.uuid(),
-        name: medicationItem.get('name'),
+        name: medicationDetails.name,
         quantity: quantity,
-        price: price,
+        price: medicationDetails.price,
         department: 'Pharmacy',
         expenseAccount: pharmacyExpenseAccount
       });
-    pharmacyCharges.addObject(pharmacyCharge);
+      pharmacyCharges.addObject(pharmacyCharge);
+    });
   },
 
   _addSupplyCharge: function(charge, department) {
@@ -332,8 +334,9 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
       }
     }
 
+    let pharmacyChargePromises = [];
     medication.forEach(function(medicationItem) {
-      this._addPharmacyCharge(medicationItem, 'inventoryItem');
+      pharmacyChargePromises.push(this._addPharmacyCharge(medicationItem, 'inventoryItem'));
     }.bind(this));
 
     this.set('wardCharges', visitCharges.map(this._mapWardCharge.bind(this)));
@@ -342,7 +345,7 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
       var charges = procedure.get('charges');
       charges.forEach(function(charge) {
         if (charge.get('medicationCharge')) {
-          this._addPharmacyCharge(charge, 'medication');
+          pharmacyChargePromises.push(this._addPharmacyCharge(charge, 'medication'));
         } else {
           this._addSupplyCharge(charge, 'O.R.');
         }
@@ -373,45 +376,47 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
       }.bind(this));
     }.bind(this));
 
-    lineItem = this.store.createRecord('billing-line-item', {
-      id: PouchDB.utils.uuid(),
-      name: 'Pharmacy',
-      category: 'Hospital Charges'
-    });
-    lineItem.get('details').addObjects(this.get('pharmacyCharges'));
-    lineItems.addObject(lineItem);
+    Ember.RSVP.all(pharmacyChargePromises).then(() =>  {
+      lineItem = this.store.createRecord('billing-line-item', {
+        id: PouchDB.utils.uuid(),
+        name: 'Pharmacy',
+        category: 'Hospital Charges'
+      });
+      lineItem.get('details').addObjects(this.get('pharmacyCharges'));
+      lineItems.addObject(lineItem);
 
-    lineItem = this.store.createRecord('billing-line-item', {
-      id: PouchDB.utils.uuid(),
-      name: 'X-ray/Lab/Supplies',
-      category: 'Hospital Charges'
-    });
-    lineItem.get('details').addObjects(this.get('supplyCharges'));
-    lineItems.addObject(lineItem);
+      lineItem = this.store.createRecord('billing-line-item', {
+        id: PouchDB.utils.uuid(),
+        name: 'X-ray/Lab/Supplies',
+        category: 'Hospital Charges'
+      });
+      lineItem.get('details').addObjects(this.get('supplyCharges'));
+      lineItems.addObject(lineItem);
 
-    lineItem = this.store.createRecord('billing-line-item', {
-      id: PouchDB.utils.uuid(),
-      name: 'Ward Items',
-      category: 'Hospital Charges'
-    });
-    lineItem.get('details').addObjects(this.get('wardCharges'));
-    lineItems.addObject(lineItem);
+      lineItem = this.store.createRecord('billing-line-item', {
+        id: PouchDB.utils.uuid(),
+        name: 'Ward Items',
+        category: 'Hospital Charges'
+      });
+      lineItem.get('details').addObjects(this.get('wardCharges'));
+      lineItems.addObject(lineItem);
 
-    lineItem = this.store.createRecord('billing-line-item', {
-      id: PouchDB.utils.uuid(),
-      name: 'Physical Therapy',
-      category: 'Hospital Charges'
-    });
-    lineItems.addObject(lineItem);
+      lineItem = this.store.createRecord('billing-line-item', {
+        id: PouchDB.utils.uuid(),
+        name: 'Physical Therapy',
+        category: 'Hospital Charges'
+      });
+      lineItems.addObject(lineItem);
 
-    lineItem = this.store.createRecord('billing-line-item', {
-      id: PouchDB.utils.uuid(),
-      name: 'Others/Misc',
-      category: 'Hospital Charges'
-    });
-    lineItems.addObject(lineItem);
+      lineItem = this.store.createRecord('billing-line-item', {
+        id: PouchDB.utils.uuid(),
+        name: 'Others/Misc',
+        category: 'Hospital Charges'
+      });
+      lineItems.addObject(lineItem);
 
-    this.send('update', true);
+      this.send('update', true);
+    });
   },
 
   _resolveVisitDescendents: function(results, childNameToResolve) {
@@ -447,10 +452,11 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
           this.store.find('sequence', 'invoice').then(function(sequence) {
             this._completeBeforeUpdate(sequence, resolve, reject);
           }.bind(this), function() {
-            var newSequence = this.get('store').push('sequence', {
+            var store = this.get('store');
+            var newSequence = store.push(store.normalize('sequence', {
               id: 'invoice',
               value: 0
-            });
+            }));
             this._completeBeforeUpdate(newSequence, resolve, reject);
           }.bind(this));
         } else {
@@ -460,8 +466,8 @@ export default AbstractEditController.extend(NumberFormat, PatientSubmodule, Pub
     }.bind(this));
   },
 
-  afterUpdate: function(record) {
-    var message = 'The invoice record has been saved.'.fmt(record.get('displayName'));
+  afterUpdate: function() {
+    var message = 'The invoice record has been saved.';
     this.displayAlert('Invoice Saved', message);
   }
 });

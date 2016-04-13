@@ -2,6 +2,12 @@ import Ember from 'ember';
 import { Adapter } from 'ember-pouch';
 import PouchAdapterUtils from 'hospitalrun/mixins/pouch-adapter-utils';
 
+const {
+  run: {
+    bind
+  }
+} = Ember;
+
 export default Adapter.extend(PouchAdapterUtils, {
   database: Ember.inject.service(),
   db: Ember.computed.reads('database.mainDB'),
@@ -12,82 +18,83 @@ export default Adapter.extend(PouchAdapterUtils, {
     'searchIndex'
   ],
 
-  _executeContainsSearch: function(store, type, query) {
-    return new Ember.RSVP.Promise(function(resolve, reject) {
+  _executeContainsSearch(store, type, query) {
+    return new Ember.RSVP.Promise((resolve, reject) => {
       var typeName = this.getRecordTypeName(type);
       var searchUrl = `/search/hrdb/${typeName}/_search`;
       if (query.containsValue && query.containsValue.value) {
         var queryString = '';
-        query.containsValue.keys.forEach(function(key) {
+        query.containsValue.keys.forEach((key) => {
           if (!Ember.isEmpty(queryString)) {
             queryString = `${queryString} OR `;
           }
           queryString = `${queryString}${key}:${query.containsValue.value}`;
         });
+        let successFn = (results) => {
+          if (results && results.hits && results.hits.hits) {
+            var resultDocs = Ember.A(results.hits.hits).map((hit) => {
+              var mappedResult = hit._source;
+              mappedResult.id = mappedResult._id;
+              return mappedResult;
+            });
+            var response = {
+              rows: resultDocs
+            };
+            this._handleQueryResponse(response, store, type).then(resolve, reject);
+          } else if (results.rows) {
+            this._handleQueryResponse(results, store, type).then(resolve, reject);
+          } else {
+            reject('Search results are not valid');
+          }
+        };
         Ember.$.ajax(searchUrl, {
           dataType: 'json',
           data: {
             q: queryString
           },
-          success: function(results) {
-            if (results && results.hits && results.hits.hits) {
-              var resultDocs = Ember.A(results.hits.hits).map(function(hit) {
-                var mappedResult = hit._source;
-                mappedResult.id = mappedResult._id;
-                return mappedResult;
-              });
-              var response = {
-                rows: resultDocs
-              };
-              this._handleQueryResponse(response, store, type).then(resolve, reject);
-            } else if (results.rows) {
-              this._handleQueryResponse(results, store, type).then(resolve, reject);
-            } else {
-              reject('Search results are not valid');
-            }
-          }.bind(this)
+          success: successFn
         });
       } else {
         reject('invalid query');
       }
-    }.bind(this));
+    });
   },
 
-  _handleQueryResponse: function(response, store, type) {
+  _handleQueryResponse(response, store, type) {
     var database = this.get('database');
-    return new Ember.RSVP.Promise(function(resolve, reject) {
+    return new Ember.RSVP.Promise((resolve, reject) => {
       if (response.rows.length > 0) {
-        var ids = response.rows.map(function(row) {
+        var ids = response.rows.map((row) => {
           return database.getEmberId(row.id);
         });
-        this.findRecord(store, type, ids).then(function(findResponse) {
+        this.findRecord(store, type, ids).then((findResponse) => {
           var primaryRecordName = type.modelName.camelize().pluralize(),
             sortedValues = [];
           // Sort response in order of ids
-          ids.forEach(function(id) {
+          ids.forEach((id) => {
             var resolvedRecord = findResponse[primaryRecordName].findBy('id', id);
             sortedValues.push(resolvedRecord);
           });
           findResponse[primaryRecordName] = sortedValues;
           resolve(findResponse);
-        }.bind(this), reject);
+        }, reject);
       } else {
         var emptyResponse = {};
         emptyResponse[type.modelName] = [];
         resolve(emptyResponse);
       }
-    }.bind(this));
+    });
   },
 
   /**
    * @private
    * Look for nulls and maxvalues in start key because those keys can't be handled by the sort/list function
    */
-  _doesStartKeyContainSpecialCharacters: function(startkey) {
+  _doesStartKeyContainSpecialCharacters(startkey) {
     var haveSpecialCharacters = false,
       maxValue = this.get('maxValue');
     if (!Ember.isEmpty(startkey) && Ember.isArray(startkey)) {
-      startkey.forEach(function(keyvalue) {
+      startkey.forEach((keyvalue) => {
         if (keyvalue === null || keyvalue === maxValue) {
           haveSpecialCharacters = true;
         }
@@ -96,11 +103,24 @@ export default Adapter.extend(PouchAdapterUtils, {
     return haveSpecialCharacters;
   },
 
-  generateIdForRecord: function() {
+  _startChangesToStoreListener: function() {
+    var db = this.get('db');
+    if (db) {
+      this.changes = db.changes({
+        since: 'now',
+        live: true,
+        returnDocs: false
+      }).on('change', bind(this, 'onChange')
+      ).on('error', Ember.K); // Change sometimes throws weird 500 errors that we can ignore
+      db.changesListener = this.changes;
+    }
+  },
+
+  generateIdForRecord() {
     return PouchDB.utils.uuid();
   },
 
-  query: function(store, type, query, options) {
+  query(store, type, query, options) {
     var specialQuery = false;
     for (var i = 0; i < this._specialQueries.length; i++) {
       if (Ember.get(query, this._specialQueries[i])) {
@@ -155,7 +175,7 @@ export default Adapter.extend(PouchAdapterUtils, {
       } else if (query.containsValue) {
         return this._executeContainsSearch(store, type, query);
       }
-      return new Ember.RSVP.Promise(function(resolve, reject) {
+      return new Ember.RSVP.Promise((resolve, reject) => {
         var db = this.get('db');
         try {
           if (mapReduce) {
@@ -164,39 +184,35 @@ export default Adapter.extend(PouchAdapterUtils, {
               var listParams = {
                 query: queryParams
               };
-              db.list(`${mapReduce}/sort/${mapReduce}`, listParams, function(err, response) {
+              db.list(`${mapReduce}/sort/${mapReduce}`, listParams, (err, response) => {
                 if (err) {
                   this._pouchError(reject)(err);
                 } else {
                   this._handleQueryResponse(response.json, store, type).then(resolve, reject);
                 }
-              }.bind(this));
+              });
             } else {
-              db.query(mapReduce, queryParams, function(err, response) {
+              db.query(mapReduce, queryParams, (err, response) => {
                 if (err) {
                   this._pouchError(reject)(err);
                 } else {
                   this._handleQueryResponse(response, store, type).then(resolve, reject);
                 }
-              }.bind(this));
+              });
             }
           } else {
-            db.allDocs(queryParams, function(err, response) {
+            db.allDocs(queryParams, (err, response) => {
               if (err) {
                 this._pouchError(reject)(err);
               } else {
                 this._handleQueryResponse(response, store, type).then(resolve, reject);
               }
-            }.bind(this));
+            });
           }
         } catch (err) {
           this._pouchError(reject)(err);
         }
-      }.bind(this), 'findQuery in application-pouchdb-adapter');
+      }, 'findQuery in application-pouchdb-adapter');
     }
-  },
-
-  shouldReloadAll: function() {
-    return false;
   }
 });

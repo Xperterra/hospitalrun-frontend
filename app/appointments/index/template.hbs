@@ -1,13 +1,13 @@
 {{#item-listing paginationProps=paginationProps }}
   <table class="table">
     <tr class="table-header">
-      <th>Date</th>
-      <th>Name</th>
-      <th>Type</th>
-      <th>Location</th>
-      <th>Provider</th>
-      <th>Status</th>
-      <th>Actions</th>
+      <th>{{t 'labels.date'}}</th>
+      <th>{{t 'labels.name'}}</th>
+      <th>{{t 'labels.type'}}</th>
+      <th>{{t 'labels.location'}}</th>
+      <th>{{t 'labels.provider'}}</th>
+      <th>{{t 'labels.status'}}</th>
+      <th>{{t 'labels.actions'}}</th>
     </tr>
     {{#each model as |appointment|}}
       {{partial 'appointments/item'}}

@@ -144,10 +144,10 @@ export default Ember.Controller.extend(DateFormat, ModalHelper, NumberFormat, Pa
 
     var reportDesc = reportTypes.findBy('value', reportType);
     if (Ember.isEmpty(startDate)) {
-      this.set('reportTitle', '%@ Report %@'.fmt(reportDesc.name, formattedEndDate));
+      this.set('reportTitle', `${reportDesc.name} Report ${formattedEndDate}`);
     } else {
       formattedStartDate = moment(startDate).format('l');
-      this.set('reportTitle', '%@ Report %@ - %@'.fmt(reportDesc.name, formattedStartDate, formattedEndDate));
+      this.set('reportTitle', `${reportDesc.name} Report ${formattedStartDate} - ${formattedEndDate}`);
     }
   },
 

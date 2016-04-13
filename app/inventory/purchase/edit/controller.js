@@ -1,7 +1,8 @@
 import AbstractEditController from 'hospitalrun/controllers/abstract-edit-controller';
 import Ember from 'ember';
+import UnitTypes from 'hospitalrun/mixins/unit-types';
 
-export default AbstractEditController.extend({
+export default AbstractEditController.extend(UnitTypes, {
   inventoryController: Ember.inject.controller('inventory'),
   cancelAction: 'closeModal',
 
@@ -16,6 +17,7 @@ export default AbstractEditController.extend({
 
   warehouseList: Ember.computed.alias('inventoryController.warehouseList'),
   aisleLocationList: Ember.computed.alias('inventoryController.aisleLocationList'),
+  inventoryUnitList: Ember.computed.alias('inventoryController.inventoryUnitList.value'),
   vendorList: Ember.computed.alias('inventoryController.vendorList'),
 
   lookupListsToUpdate: [{
@@ -39,11 +41,12 @@ export default AbstractEditController.extend({
   updateCapability: 'add_inventory_purchase',
 
   title: function() {
+    let i18n = this.get('i18n');
     var isNew = this.get('model.isNew');
     if (isNew) {
-      return 'Add Purchase';
+      return i18n.t('inventory.titles.add_purchase');
     }
-    return 'Edit Purchase';
+    return i18n.t('inventory.titles.edit_purchase');
   }.property('model.isNew'),
 
   beforeUpdate: function() {

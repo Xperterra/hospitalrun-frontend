@@ -25,6 +25,7 @@ export default AbstractEditController.extend(InventoryLocations, InventoryTypeLi
   warehouseList: Ember.computed.alias('inventory.warehouseList'),
   aisleLocationList: Ember.computed.alias('inventory.aisleLocationList'),
   inventoryTypeList: Ember.computed.alias('inventory.inventoryTypeList.value'),
+  inventoryUnitList: Ember.computed.alias('inventory.inventoryUnitList.value'),
   vendorList: Ember.computed.alias('inventory.vendorList'),
   database: Ember.inject.service(),
 
@@ -144,7 +145,7 @@ export default AbstractEditController.extend(InventoryLocations, InventoryTypeLi
     },
 
     editNewItem: function() {
-      this.send('editItem', this.get('id'));
+      this.send('editItem', this.get('model.id'));
     },
 
     showAdjustment: function(inventoryLocation) {
@@ -211,15 +212,14 @@ export default AbstractEditController.extend(InventoryLocations, InventoryTypeLi
       model = this.get('model'),
       newPurchase = model.getProperties('aisleLocation', 'dateReceived',
         'purchaseCost', 'lotNumber', 'expirationDate', 'giftInKind',
-        'location', 'vendor', 'vendorItemNo'),
-      quantity = this.get('model.quantity');
+        'invoiceNo', 'location', 'originalQuantity', 'quantityGroups', 'vendor', 'vendorItemNo'),
+      quantity = this.get('model.originalQuantity');
     if (!Ember.isEmpty(quantity)) {
-      newPurchase.originalQuantity = quantity;
       newPurchase.currentQuantity = quantity;
       newPurchase.inventoryItem = this.get('model.id');
       var purchase = this.get('store').createRecord('inv-purchase', newPurchase);
       promises.push(purchase.save());
-      this.get('purchases').addObject(purchase);
+      this.get('model.purchases').addObject(purchase);
       promises.push(this.newPurchaseAdded(this.get('model'), purchase));
     }
     sequence.incrementProperty('value', 1);
@@ -243,11 +243,12 @@ export default AbstractEditController.extend(InventoryLocations, InventoryTypeLi
       this._checkNextSequence(resolve, inventoryType, 0);
     }.bind(this));
     sequenceFinder.then(function(prefixChars) {
-      var newSequence = this.get('store').push('sequence', {
+      var store = this.get('store');
+      var newSequence = store.push(store.normalize('sequence', {
         id: 'inventory_' + inventoryType,
         prefix: inventoryType.toLowerCase().substr(0, prefixChars),
         value: 0
-      });
+      }));
       this._completeBeforeUpdate(newSequence, resolve, reject);
     }.bind(this));
   },
@@ -289,7 +290,7 @@ export default AbstractEditController.extend(InventoryLocations, InventoryTypeLi
   getTransactions: function() {
     var inventoryId = this.get('model.id');
     this.set('transactions', null);
-    this.store.find('inv-request', {
+    this.store.query('inv-request', {
       options: {
         endkey: [inventoryId, 'Completed', 0],
         startkey: [inventoryId, 'Completed', 9999999999999],

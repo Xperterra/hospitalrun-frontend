@@ -1,9 +1,10 @@
 import AbstractIndexRoute from 'hospitalrun/routes/abstract-index-route';
+import { translationMacro as t } from 'ember-i18n';
 export default AbstractIndexRoute.extend({
   hideNewButton: true,
-  pageTitle: 'Lookup Lists',
+  pageTitle: t('admin.lookup.page_title'),
   model: function() {
-    return this.store.find('lookup');
+    return this.store.findAll('lookup');
   },
 
   afterModel: function(model) {

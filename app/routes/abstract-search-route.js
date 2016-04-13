@@ -1,4 +1,4 @@
-import AuthenticatedRouteMixin from 'simple-auth/mixins/authenticated-route-mixin';
+import AuthenticatedRouteMixin from 'ember-simple-auth/mixins/authenticated-route-mixin';
 import DS from 'ember-data';
 import Ember from 'ember';
 
@@ -17,7 +17,7 @@ export default Ember.Route.extend(AuthenticatedRouteMixin, {
       } else {
         var searchParams = Ember.copy(searchIndex);
         searchParams.query = searchText;
-        this.store.find(searchModel, {
+        this.store.query(searchModel, {
           searchIndex: searchParams
         }).then(function(results) {
           if (Ember.isEmpty(results)) {
@@ -39,7 +39,7 @@ export default Ember.Route.extend(AuthenticatedRouteMixin, {
           keys: searchKeys
         }
       };
-    return this.store.find(searchModel, queryParams);
+    return this.store.query(searchModel, queryParams);
   },
 
   /**
@@ -71,7 +71,7 @@ export default Ember.Route.extend(AuthenticatedRouteMixin, {
     controller.set('searchText', this.get('searchText'));
     this.controllerFor('navigation').closeProgressModal();
     var parentController = this.controllerFor(this.get('moduleName'));
-    var searchTitle = 'Search Results for <i>' + this.get('searchText') + '</i>';
+    var searchTitle = 'Search Results for <i>' + Ember.Handlebars.Utils.escapeExpression(this.get('searchText')) + '</i>';
     parentController.set('currentScreenTitle', searchTitle.htmlSafe());
   }
 

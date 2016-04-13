@@ -1,5 +1,6 @@
 import Ember from 'ember';
 export default Ember.Mixin.create({
+  session: Ember.inject.service(),
   defaultCapabilities: {
     admin: [
       'User Administrator',
@@ -25,7 +26,6 @@ export default Ember.Mixin.create({
     ],
     add_charge: [
       'Data Entry',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -66,7 +66,6 @@ export default Ember.Mixin.create({
     add_pricing: [
       'Data Entry',
       'Finance',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -74,7 +73,6 @@ export default Ember.Mixin.create({
     add_pricing_profile: [
       'Data Entry',
       'Finance',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -120,14 +118,11 @@ export default Ember.Mixin.create({
     ],
     add_invoice: [
       'Data Entry',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
     ],
     add_payment: [
-      'Cashier',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -238,7 +233,6 @@ export default Ember.Mixin.create({
       'System Administrator'
     ],
     delete_invoice: [
-      'Business Office',
       'Hospital Administrator',
       'System Administrator'
     ],
@@ -271,7 +265,6 @@ export default Ember.Mixin.create({
     delete_pricing: [
       'Finance',
       'Data Entry',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -279,7 +272,6 @@ export default Ember.Mixin.create({
     delete_pricing_profile: [
       'Finance',
       'Data Entry',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -334,7 +326,6 @@ export default Ember.Mixin.create({
     ],
     edit_invoice: [
       'Data Entry',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -390,8 +381,10 @@ export default Ember.Mixin.create({
       'Pharmacist',
       'System Administrator'
     ],
+    load_db: [
+      'System Administrator'
+    ],
     override_invoice: [
-      'Business Office',
       'Hospital Administrator',
       'System Administrator'
     ],
@@ -399,7 +392,6 @@ export default Ember.Mixin.create({
       'System Administrator'
     ],
     patients: [
-      'Business Office',
       'Data Entry',
       'Doctor',
       'Finance',
@@ -424,7 +416,6 @@ export default Ember.Mixin.create({
     pricing: [
       'Data Entry',
       'Finance',
-      'Business Office',
       'Hospital Administrator',
       'Medical Records Officer',
       'System Administrator'
@@ -446,24 +437,45 @@ export default Ember.Mixin.create({
     users: [
       'User Administrator',
       'System Administrator'
+    ],
+    add_note: [
+      'Doctor',
+      'Medical Records Officer',
+      'Nurse',
+      'Nurse Manager',
+      'Patient Administration',
+      'System Administrator'
+    ],
+    delete_note: [
+      'Medical Records Officer',
+      'Nurse Manager',
+      'Patient Administration',
+      'System Administrator'
+    ],
+    'user_roles': [
+      'System Administrator'
     ]
-
   },
 
   _getUserSessionVars: function() {
     var session = this.get('session');
-    if (!Ember.isEmpty(session) && session.isAuthenticated) {
-      return session.get('secure');
+    if (!Ember.isEmpty(session) && session.get('isAuthenticated')) {
+      return session.get('data.authenticated');
     }
   },
 
   currentUserCan: function(capability) {
     var sessionVars = this._getUserSessionVars();
     if (!Ember.isEmpty(sessionVars) && !Ember.isEmpty(sessionVars.role)) {
-      var capabilities = this.get('defaultCapabilities'),
-        supportedRoles = capabilities[capability];
-      if (!Ember.isEmpty(supportedRoles)) {
-        return supportedRoles.contains(sessionVars.role);
+      var userCaps = this.get('session').get('data.authenticated.userCaps');
+      if (Ember.isEmpty(userCaps)) {
+        var capabilities = this.get('defaultCapabilities');
+        var supportedRoles = capabilities[capability];
+        if (!Ember.isEmpty(supportedRoles)) {
+          return supportedRoles.contains(sessionVars.role);
+        }
+      } else {
+        return userCaps.contains(capability);
       }
     }
     return false;

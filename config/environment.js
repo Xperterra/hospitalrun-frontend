@@ -5,7 +5,7 @@ module.exports = function(environment) {
     modulePrefix: 'hospitalrun',
     environment: environment,
     baseURL: '/',
-    locationType: 'hash', //Auto incompatible with google login right now
+    locationType: 'hash', // Auto incompatible with google login right now
     EmberENV: {
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
@@ -16,39 +16,17 @@ module.exports = function(environment) {
     APP: {
       // Here you can pass flags/options to your application instance
       // when it is created
-    },
-
-    'simple-auth': {
-
     }
   };
 
-ENV.APP.manifest = {
-  enabled: true,
-  appcacheFile: "/manifest.appcache",
-  excludePaths: ['index.html', 'someother.html'],
-  includePaths: ['/'],
-  network: ['api/'],
-  showCreateDate: true
-};
-
-  if (environment === 'development') {
-    // ENV.APP.LOG_RESOLVER = true;
-    // ENV.APP.LOG_ACTIVE_GENERATION = true;
-    // ENV.APP.LOG_TRANSITIONS = true;
-    // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
-    // ENV.APP.LOG_VIEW_LOOKUPS = true;
-      
-    ENV.contentSecurityPolicy = {
-      'default-src': "'none'",
-      'script-src': "'self' 'unsafe-inline'",
-      'font-src': "'self'",
-      'connect-src': "'self'",
-      'img-src': "'self' data:",
-      'style-src': "'self' 'unsafe-inline'",
-      'media-src': "'self'"
-    };      
-  }
+  ENV.contentSecurityPolicy = {
+    'connect-src': "'self'",
+    'default-src': "'self'",
+    'frame-src': "'self'",
+    'img-src': "'self' filesystem: data:",
+    'script-src': "'self' 'unsafe-inline' 'unsafe-eval'",
+    'style-src': "'self' 'unsafe-inline'"
+  };
 
   if (environment === 'test') {
     // Testem prefers this...
@@ -60,21 +38,31 @@ ENV.APP.manifest = {
     ENV.APP.LOG_VIEW_LOOKUPS = false;
 
     ENV.APP.rootElement = '#ember-testing';
-
-    ENV['simple-auth'].store = 'simple-auth-session-store:ephemeral';
   }
 
+  ENV.i18n = {
+    defaultLocale: 'en'
+  };
+
+  ENV.manifest = {
+    enabled: true,
+    appcacheFile: '/manifest.appcache',
+    excludePaths: ['index.html', 'tests/index.html', 'robots.txt', 'crossdomain.xml', 'testem.js'],
+    showCreateDate: true
+  };
+
+  ENV.serviceWorker = {
+    enabled: true,
+    debug: true,
+    excludePaths: ['manifest.appcache'],
+    swIncludeFiles: [
+      'bower_components/pouchdb/dist/pouchdb.js'
+    ]
+  };
   if (environment === 'production') {
-
+    ENV.serviceWorker.debug = false;
   }
-
-ENV.manifest = {
-  enabled: true,
-  appcacheFile: "/manifest.appcache",
-  excludePaths: ['index.html', 'tests', 'dymo','robots.txt','testem.js'],
-  //includePaths: ['/'],
-  showCreateDate: true
-};
 
   return ENV;
 };
+

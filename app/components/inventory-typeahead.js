@@ -1,17 +1,26 @@
+import Ember from 'ember';
 import TypeAhead from 'hospitalrun/components/type-ahead';
 export default TypeAhead.extend({
+  classNameBindings: ['haveInventoryItems'],
   displayKey: 'name',
   showQuantity: true,
   _mapInventoryItems: function(item) {
     var returnObj = {};
     if (this.get('showQuantity') && item.quantity) {
-      returnObj.name = '%@ - %@ (%@ available)'.fmt(item.name, item.friendlyId, item.quantity);
+      returnObj.name = `${item.name} - ${item.friendlyId} (${item.quantity} available)`;
     } else {
-      returnObj.name = '%@ - %@'.fmt(item.name, item.friendlyId);
+      returnObj.name = `${item.name} - ${item.friendlyId}`;
     }
     returnObj[this.get('selectionKey')] = item;
     return returnObj;
   },
+
+  haveInventoryItems: function() {
+    var content = this.get('content');
+    if (!Ember.isEmpty(content) && content.length > 0) {
+      return 'have-inventory-items';
+    }
+  }.property('content'),
 
   mappedContent: function() {
     var content = this.get('content'),

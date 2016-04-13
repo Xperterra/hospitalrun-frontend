@@ -1,9 +1,5 @@
 /* global require, module */
 var EmberApp = require('ember-cli/lib/broccoli/ember-app');
-var mergeTrees = require('broccoli-merge-trees');
-var writeManifest = require('broccoli-manifest');
-var fileRemover = require('broccoli-file-remover');
-
 module.exports = function(defaults) {
     var app = new EmberApp(defaults, {
         // Add options here
@@ -21,8 +17,6 @@ module.exports = function(defaults) {
     // please specify an object with the list of modules as keys
     // along with the exports of each module as its value.
     app.import('vendor/pouchdb-list/pouchdb-list.js');
-    app.import('vendor/couch-oauth/sha1.js');
-    app.import('vendor/couch-oauth/oauth.js');
     app.import('bower_components/node-uuid/uuid.js');
     app.import('bower_components/bootstrap/dist/js/bootstrap.js');
     app.import('bower_components/JsBarcode/CODE128.js');
@@ -37,11 +31,7 @@ module.exports = function(defaults) {
     app.import('vendor/octicons/octicons/octicons.css');
 
     app.import('bower_components/pouchdb-load/dist/pouchdb.load.js');
-    app.import('bower_components/pouchdb-memory/index.js');
+    app.import('bower_components/pouchdb/dist/pouchdb.memory.js');
 
-    var completeTree = app.toTree();
-    var manifestTree = fileRemover(completeTree, {
-        paths: ['index.html', 'tests/', 'testem.js', 'robots.txt']
-    });
-    return mergeTrees([completeTree, writeManifest(manifestTree)]);
+    return app.toTree();
 };

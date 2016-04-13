@@ -12,8 +12,8 @@
       {{/unless}}
       {{date-picker property="billDate" label="Bill Date" class="col-xs-2"}}
       {{#if model.isNew}}
-        {{patient-typeahead property="patientTypeAhead" label="Patient" content=patientList selection=selectedPatient class="col-xs-4 required"}}
-        {{em-select class="col-xs-4 required" label="Visit"
+        {{patient-typeahead property="patientTypeAhead" label="Patient" content=patientList selection=selectedPatient class="col-xs-4 required invoice-patient"}}
+        {{em-select class="col-xs-4 required invoice-visit" label="Visit"
             property="visit" content=patientVisitsForSelect
             optionValuePath="selectObject" optionLabelPath="selectObject.visitDescription"
             selected=model.visit
@@ -27,7 +27,7 @@
       {{/if}}
     </div>
     <div class="row">
-      {{em-input property="externalInvoiceNumber" label="External Invoice #" class="col-xs-3"}}
+      {{em-input property="externalInvoiceNumber" label="External Invoice #" class="col-xs-3 external-invoice-no"}}
       {{em-select label="Payment Profile"
         property="paymentProfile"
         content=pricingProfiles
@@ -58,7 +58,7 @@
             <th class="text-right">PhilHealth</th>
             <th class="text-right">HMO/COM</th>
             <th class="text-right">Excess</th>
-            <th class="text-right">Action</th>
+            <th class="text-right">{{t 'labels.action'}}</th>
           </tr>
           {{#each model.lineItemsByCategory as |categoryGroup|}}
             <tr>
@@ -106,8 +106,8 @@
               </tr>
               {{#if item.showDetails}}
                 <tr>
-                  <th colspan="2">Name</th>
-                  <th>Quantity</th>
+                  <th colspan="2">{{t 'labels.name'}}</th>
+                  <th>{{t 'labels.quantity'}}</th>
                   <th>Price</th>
                   <th>Expense To</th>
                   <th class="col-xs-1 text-right">Total</th>
@@ -230,18 +230,18 @@
           <th>Date</th>
           <th>Amount</th>
           <th>Type</th>
-          <th>Notes</th>
-          <th>Action</th>
+          <th>{{t 'labels.notes'}}</th>
+          <th>{{t 'labels.action'}}</th>
         </tr>
         {{#each model.payments as |payment|}}
           <tr {{action 'showEditPayment' payment}}>
             <td>{{date-format payment.datePaid}}</td>
             <td>{{payment.amount}}</td>
-            <td>{{payment.type}}</td>
+            <td>{{payment.paymentType}}</td>
             <td>{{payment.notes}}</td>
             {{#if canAddPayment}}
             <td>
-              <button class="btn btn-default neutral" {{action 'showEditPayment' payment  bubbles=false }}>Edit</button>
+              <button class="btn btn-default neutral" {{action 'showEditPayment' payment  bubbles=false }}>{{t 'labels.edit'}}</button>
               {{#if payment.canRemovePayment}}
                 <button class="btn btn-default warning" {{action "showRemovePayment" payment bubbles=false }}>
                   <span class="octicon octicon-x"></span>Remove
